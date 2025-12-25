@@ -138,6 +138,8 @@ export async function updateLastRoute(params: {
     model: existing?.model,
     contextTokens: existing?.contextTokens,
     skillsSnapshot: existing?.skillsSnapshot,
+    groupActivation: existing?.groupActivation,
+    groupActivationNeedsSystemIntro: existing?.groupActivationNeedsSystemIntro,
     lastChannel: channel,
     lastTo: to?.trim() ? to.trim() : undefined,
   };
