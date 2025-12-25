@@ -327,6 +327,11 @@ export async function getReplyFromConfig(
     verboseLevel: persistedVerbose ?? baseEntry?.verboseLevel,
     modelOverride: persistedModelOverride ?? baseEntry?.modelOverride,
     providerOverride: persistedProviderOverride ?? baseEntry?.providerOverride,
+    // Preserve group activation across session resets (set via /activation command)
+    groupActivation: entry?.groupActivation ?? baseEntry?.groupActivation,
+    groupActivationNeedsSystemIntro:
+      entry?.groupActivationNeedsSystemIntro ??
+      baseEntry?.groupActivationNeedsSystemIntro,
   };
   sessionStore[sessionKey] = sessionEntry;
   await saveSessionStore(storePath, sessionStore);
