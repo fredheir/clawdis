@@ -6,4 +6,5 @@ export type {
 export {
   queueEmbeddedPiMessage,
   runEmbeddedPiAgent,
+  setRateLimitFallbackCallback,
 } from "./pi-embedded-runner.js";

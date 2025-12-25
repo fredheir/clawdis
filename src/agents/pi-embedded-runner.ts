@@ -50,6 +50,72 @@ import {
 import { buildAgentSystemPromptAppend } from "./system-prompt.js";
 import { loadWorkspaceBootstrapFiles } from "./workspace.js";
 
+/**
+ * Check if an error is an Anthropic rate limit error (429).
+ */
+function isRateLimitError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = String(err);
+  // Match patterns like: 429 {"type":"error","error":{"type":"rate_limit_error"...
+  if (msg.includes("429") && msg.includes("rate_limit")) return true;
+  if (msg.includes("rate_limit_error")) return true;
+  // Check for error object with status
+  if (typeof err === "object" && "status" in err && err.status === 429)
+    return true;
+  return false;
+}
+
+/**
+ * Get fallback API key from environment (for pay-as-you-go billing).
+ */
+function getFallbackApiKey(): string | null {
+  const key = process.env.ANTHROPIC_API_KEY?.trim();
+  return key && key.length > 0 ? key : null;
+}
+
+/**
+ * Track whether we've hit a rate limit and should use the fallback API key.
+ * Resets after successful use or after a cooldown period.
+ */
+let useApiKeyFallback = false;
+let fallbackActivatedAt = 0;
+const FALLBACK_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
+function shouldUseFallbackKey(): boolean {
+  if (!useApiKeyFallback) return false;
+  // Reset fallback mode after cooldown
+  if (Date.now() - fallbackActivatedAt > FALLBACK_COOLDOWN_MS) {
+    useApiKeyFallback = false;
+    return false;
+  }
+  return getFallbackApiKey() !== null;
+}
+
+type RateLimitCallback = (message: string) => void | Promise<void>;
+let onRateLimitFallbackCallback: RateLimitCallback | undefined;
+
+export function setRateLimitFallbackCallback(cb: RateLimitCallback | undefined): void {
+  onRateLimitFallbackCallback = cb;
+}
+
+function activateFallbackMode(): void {
+  const fallbackKey = getFallbackApiKey();
+  if (!fallbackKey) return;
+  useApiKeyFallback = true;
+  fallbackActivatedAt = Date.now();
+  const message =
+    "⚠️ Rate limit hit - switching to pay-as-you-go API key for next 5 minutes. This will incur API charges.";
+  console.warn(
+    "\n⚠️  RATE LIMIT HIT - Switching to pay-as-you-go API key for next requests\n" +
+      "   OAuth rate limit exceeded. Using ANTHROPIC_API_KEY fallback.\n" +
+      "   This will incur API charges. Fallback active for 5 minutes.\n",
+  );
+  // Notify via callback if registered
+  if (onRateLimitFallbackCallback) {
+    void onRateLimitFallbackCallback(message);
+  }
+}
+
 export type EmbeddedPiAgentMeta = {
   sessionId: string;
   provider: string;
@@ -213,6 +279,11 @@ function resolveModel(
 async function getApiKeyForModel(model: Model<Api>): Promise<string> {
   ensureOAuthStorage();
   if (model.provider === "anthropic") {
+    // Check if we should use fallback API key (after hitting rate limit)
+    if (shouldUseFallbackKey()) {
+      const fallback = getFallbackApiKey();
+      if (fallback) return fallback;
+    }
     const oauthEnv = process.env.ANTHROPIC_OAUTH_TOKEN;
     if (oauthEnv?.trim()) return oauthEnv.trim();
   }
@@ -448,6 +519,18 @@ export async function runEmbeddedPiAgent(params: {
         params.abortSignal?.removeEventListener?.("abort", onAbort);
       }
       if (promptError && !aborted) {
+        // Check if this is a rate limit error and we have a fallback API key
+        if (isRateLimitError(promptError)) {
+          const fallbackKey = getFallbackApiKey();
+          if (fallbackKey && !shouldUseFallbackKey()) {
+            // Activate fallback mode for subsequent requests
+            activateFallbackMode();
+            // Rethrow with helpful message - next request will use fallback
+            throw new Error(
+              "Rate limit exceeded. Fallback API key activated - please resend your message.",
+            );
+          }
+        }
         throw promptError;
       }
 
