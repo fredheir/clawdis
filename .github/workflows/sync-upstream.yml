@@ -1,0 +1,41 @@
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Daily at 9am UTC
+  workflow_dispatch:  # Manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream and merge
+        run: |
+          git remote add upstream https://github.com/steipete/clawdis.git
+          git fetch upstream
+          
+          # Check if there are new commits
+          UPSTREAM_COMMITS=$(git rev-list HEAD..upstream/main --count)
+          if [ "$UPSTREAM_COMMITS" -eq 0 ]; then
+            echo "Already up to date with upstream"
+            exit 0
+          fi
+          
+          echo "Found $UPSTREAM_COMMITS new commits from upstream"
+          
+          # Attempt merge
+          git merge upstream/main -m "Merge upstream steipete/clawdis (auto-sync)"
+          
+      - name: Push changes
+        run: git push origin main
