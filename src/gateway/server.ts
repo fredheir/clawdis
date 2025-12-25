@@ -515,7 +515,10 @@ const EVENTS = [
 ];
 
 export type GatewayServer = {
-  close: () => Promise<void>;
+  close: (opts?: {
+    reason?: string;
+    restartExpectedMs?: number | null;
+  }) => Promise<void>;
 };
 
 export type GatewayServerOptions = {
@@ -1733,6 +1736,7 @@ export async function startGatewayServer(
     { controller: AbortController; sessionId: string; sessionKey: string }
   >();
   setCommandLaneConcurrency("cron", cfgAtStart.cron?.maxConcurrentRuns ?? 1);
+  setCommandLaneConcurrency("main", cfgAtStart.agent?.maxConcurrent ?? 1);
 
   const cronStorePath = resolveCronStorePath(cfgAtStart.cron?.store);
   const cronLogger = getChildLogger({
@@ -5911,7 +5915,15 @@ export async function startGatewayServer(
   }
 
   return {
-    close: async () => {
+    close: async (opts) => {
+      const reasonRaw =
+        typeof opts?.reason === "string" ? opts.reason.trim() : "";
+      const reason = reasonRaw || "gateway stopping";
+      const restartExpectedMs =
+        typeof opts?.restartExpectedMs === "number" &&
+        Number.isFinite(opts.restartExpectedMs)
+          ? Math.max(0, Math.floor(opts.restartExpectedMs))
+          : null;
       if (bonjourStop) {
         try {
           await bonjourStop();
@@ -5947,8 +5959,8 @@ export async function startGatewayServer(
       await stopTelegramProvider();
       cron.stop();
       broadcast("shutdown", {
-        reason: "gateway stopping",
-        restartExpectedMs: null,
+        reason,
+        restartExpectedMs,
       });
       clearInterval(tickInterval);
       clearInterval(healthInterval);

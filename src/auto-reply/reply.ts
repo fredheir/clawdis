@@ -15,6 +15,7 @@ import {
 import {
   queueEmbeddedPiMessage,
   runEmbeddedPiAgent,
+  setRateLimitFallbackCallback,
 } from "../agents/pi-embedded.js";
 import { buildWorkspaceSkillSnapshot } from "../agents/skills.js";
 import {
@@ -163,6 +164,13 @@ export async function getReplyFromConfig(
   opts?: GetReplyOptions,
   configOverride?: ClawdisConfig,
 ): Promise<ReplyPayload | ReplyPayload[] | undefined> {
+  // Wire up rate limit fallback notification
+  if (opts?.onPartialReply) {
+    setRateLimitFallbackCallback((message) => {
+      void opts.onPartialReply?.({ text: message });
+    });
+  }
+
   const cfg = configOverride ?? loadConfig();
   const workspaceDirRaw = cfg.agent?.workspace ?? DEFAULT_AGENT_WORKSPACE_DIR;
   const agentCfg = cfg.agent;
@@ -327,6 +335,11 @@ export async function getReplyFromConfig(
     verboseLevel: persistedVerbose ?? baseEntry?.verboseLevel,
     modelOverride: persistedModelOverride ?? baseEntry?.modelOverride,
     providerOverride: persistedProviderOverride ?? baseEntry?.providerOverride,
+    // Preserve group activation across session resets (set via /activation command)
+    groupActivation: entry?.groupActivation ?? baseEntry?.groupActivation,
+    groupActivationNeedsSystemIntro:
+      entry?.groupActivationNeedsSystemIntro ??
+      baseEntry?.groupActivationNeedsSystemIntro,
   };
   sessionStore[sessionKey] = sessionEntry;
   await saveSessionStore(storePath, sessionStore);
