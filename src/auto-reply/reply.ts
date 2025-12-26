@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 import { lookupContextTokens } from "../agents/context.js";
 import {
@@ -793,6 +795,37 @@ export async function getReplyFromConfig(
   const isGroupChat = sessionCtx.ChatType === "group";
   const wasMentioned = ctx.WasMentioned === true;
   const shouldEagerType = !isGroupChat || wasMentioned;
+
+  // Per-group agent file and instructions
+  const groupJid = isGroupChat
+    ? (ctx.From ?? "").replace(/^whatsapp:/, "").replace(/^group:/, "")
+    : undefined;
+  const perGroupConfig = groupJid ? cfg.routing?.groups?.[groupJid] : undefined;
+  const perGroupAgentContent = (() => {
+    if (!perGroupConfig?.agentFile) return undefined;
+    const agentFilePath = perGroupConfig.agentFile.startsWith("/")
+      ? perGroupConfig.agentFile
+      : path.resolve(workspaceDir, perGroupConfig.agentFile);
+    try {
+      const content = fs.readFileSync(agentFilePath, "utf-8");
+      // Strip YAML frontmatter if present
+      const stripped = content.startsWith("---")
+        ? content.replace(/^---[\s\S]*?\n---\s*/, "")
+        : content;
+      return stripped.trim();
+    } catch {
+      logVerbose(`Failed to read per-group agent file: ${agentFilePath}`);
+      return undefined;
+    }
+  })();
+  const perGroupExtra = [
+    perGroupAgentContent,
+    perGroupConfig?.extraInstructions,
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+
   const shouldInjectGroupIntro =
     isGroupChat &&
     (isFirstTurnInSession || sessionEntry?.groupActivationNeedsSystemIntro);
@@ -1017,7 +1050,9 @@ export async function getReplyFromConfig(
       config: cfg,
       skillsSnapshot,
       prompt: commandBody,
-      extraSystemPrompt: groupIntro || undefined,
+      extraSystemPrompt:
+        [groupIntro, perGroupExtra].filter(Boolean).join("\n\n").trim() ||
+        undefined,
       ownerNumbers: ownerList.length > 0 ? ownerList : undefined,
       enforceFinalTag:
         provider === "lmstudio" || provider === "ollama" ? true : undefined,

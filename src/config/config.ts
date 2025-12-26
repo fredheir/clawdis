@@ -142,6 +142,13 @@ export type GroupChatConfig = {
   historyLimit?: number;
 };
 
+export type PerGroupConfig = {
+  /** Path to an agent file to load for this group (relative to workspace or absolute). */
+  agentFile?: string;
+  /** Extra instructions to inject into the system prompt for this group. */
+  extraInstructions?: string;
+};
+
 export type RoutingConfig = {
   allowFrom?: string[]; // E.164 numbers allowed to trigger auto-reply (without whatsapp:)
   transcribeAudio?: {
@@ -150,6 +157,8 @@ export type RoutingConfig = {
     timeoutSeconds?: number;
   };
   groupChat?: GroupChatConfig;
+  /** Per-group configuration keyed by JID (e.g., "120363406978274029@g.us"). */
+  groups?: Record<string, PerGroupConfig>;
 };
 
 export type MessagesConfig = {
@@ -423,6 +432,11 @@ const GroupChatSchema = z
   })
   .optional();
 
+const PerGroupSchema = z.object({
+  agentFile: z.string().optional(),
+  extraInstructions: z.string().optional(),
+});
+
 const TranscribeAudioSchema = z
   .object({
     command: z.array(z.string()),
@@ -474,6 +488,7 @@ const RoutingSchema = z
     allowFrom: z.array(z.string()).optional(),
     groupChat: GroupChatSchema,
     transcribeAudio: TranscribeAudioSchema,
+    groups: z.record(z.string(), PerGroupSchema).optional(),
   })
   .optional();
 
