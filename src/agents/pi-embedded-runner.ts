@@ -53,6 +53,56 @@ import {
 import { buildAgentSystemPromptAppend } from "./system-prompt.js";
 import { loadWorkspaceBootstrapFiles } from "./workspace.js";
 
+/**
+ * Check if an error is an Anthropic rate limit error (429).
+ */
+function isRateLimitError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = String(err);
+  if (msg.includes("429") && msg.includes("rate_limit")) return true;
+  if (msg.includes("rate_limit_error")) return true;
+  if (typeof err === "object" && "status" in err && err.status === 429)
+    return true;
+  return false;
+}
+
+/**
+ * Get fallback API key from environment (for pay-as-you-go billing).
+ */
+function getFallbackApiKey(): string | null {
+  const key = process.env.ANTHROPIC_API_KEY?.trim();
+  return key && key.length > 0 ? key : null;
+}
+
+let useApiKeyFallback = false;
+let fallbackActivatedAt = 0;
+const FALLBACK_COOLDOWN_MS = 5 * 60 * 1000;
+
+function shouldUseFallbackKey(): boolean {
+  if (!useApiKeyFallback) return false;
+  if (Date.now() - fallbackActivatedAt > FALLBACK_COOLDOWN_MS) {
+    useApiKeyFallback = false;
+    return false;
+  }
+  return getFallbackApiKey() !== null;
+}
+
+function activateFallbackMode(): void {
+  useApiKeyFallback = true;
+  fallbackActivatedAt = Date.now();
+  console.log("[rate-limit] Fallback API key activated for 5 minutes");
+  onRateLimitFallbackCallback?.("Rate limit hit - using fallback API key");
+}
+
+type RateLimitCallback = (message: string) => void | Promise<void>;
+let onRateLimitFallbackCallback: RateLimitCallback | undefined;
+
+export function setRateLimitFallbackCallback(
+  cb: RateLimitCallback | undefined,
+): void {
+  onRateLimitFallbackCallback = cb;
+}
+
 export type EmbeddedPiAgentMeta = {
   sessionId: string;
   provider: string;
@@ -478,6 +528,15 @@ export async function runEmbeddedPiAgent(params: {
           params.abortSignal?.removeEventListener?.("abort", onAbort);
         }
         if (promptError && !aborted) {
+          if (isRateLimitError(promptError)) {
+            const fallbackKey = getFallbackApiKey();
+            if (fallbackKey && !shouldUseFallbackKey()) {
+              activateFallbackMode();
+              throw new Error(
+                "Rate limit exceeded. Fallback API key activated - please resend.",
+              );
+            }
+          }
           throw promptError;
         }
 
