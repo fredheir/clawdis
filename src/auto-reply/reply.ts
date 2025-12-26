@@ -996,6 +996,7 @@ export async function getReplyFromConfig(
     const runId = crypto.randomUUID();
     const runResult = await runEmbeddedPiAgent({
       sessionId: sessionIdFinal,
+      sessionKey,
       sessionFile,
       workspaceDir,
       config: cfg,
