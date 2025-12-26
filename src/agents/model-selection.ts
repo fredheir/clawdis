@@ -26,6 +26,24 @@ export function parseModelRef(
   return { provider, model };
 }
 
+export function resolveConfiguredModelRef(params: {
+  cfg: ClawdisConfig;
+  defaultProvider: string;
+  defaultModel: string;
+}): ModelRef {
+  const rawModel = params.cfg.agent?.model?.trim() || "";
+  if (rawModel) {
+    const trimmed = rawModel.trim();
+    if (trimmed.includes("/")) {
+      const parsed = parseModelRef(trimmed, params.defaultProvider);
+      if (parsed) return parsed;
+    }
+    // TODO(steipete): drop this fallback once provider-less agent.model is fully deprecated.
+    return { provider: params.defaultProvider, model: trimmed };
+  }
+  return { provider: params.defaultProvider, model: params.defaultModel };
+}
+
 export function buildAllowedModelSet(params: {
   cfg: ClawdisConfig;
   catalog: ModelCatalogEntry[];

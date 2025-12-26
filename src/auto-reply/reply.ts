@@ -11,6 +11,7 @@ import {
   buildAllowedModelSet,
   modelKey,
   parseModelRef,
+  resolveConfiguredModelRef,
 } from "../agents/model-selection.js";
 import {
   queueEmbeddedPiMessage,
@@ -176,10 +177,25 @@ export async function getReplyFromConfig(
   const agentCfg = cfg.agent;
   const sessionCfg = cfg.session;
 
-  const defaultProvider = agentCfg?.provider?.trim() || DEFAULT_PROVIDER;
-  const defaultModel = agentCfg?.model?.trim() || DEFAULT_MODEL;
+  const mainModel = resolveConfiguredModelRef({
+    cfg,
+    defaultProvider: DEFAULT_PROVIDER,
+    defaultModel: DEFAULT_MODEL,
+  });
+  const defaultProvider = mainModel.provider;
+  const defaultModel = mainModel.model;
   let provider = defaultProvider;
   let model = defaultModel;
+  if (opts?.isHeartbeat) {
+    const heartbeatRaw = agentCfg?.heartbeat?.model?.trim() ?? "";
+    const heartbeatRef = heartbeatRaw
+      ? parseModelRef(heartbeatRaw, defaultProvider)
+      : null;
+    if (heartbeatRef) {
+      provider = heartbeatRef.provider;
+      model = heartbeatRef.model;
+    }
+  }
   let contextTokens =
     agentCfg?.contextTokens ??
     lookupContextTokens(model) ??
@@ -738,7 +754,6 @@ export async function getReplyFromConfig(
     const heartbeatSeconds = resolveHeartbeatSeconds(cfg, undefined);
     const statusText = buildStatusMessage({
       agent: {
-        provider,
         model,
         contextTokens,
         thinkingDefault: agentCfg?.thinkingDefault,
@@ -1061,8 +1076,7 @@ export async function getReplyFromConfig(
 
     if (sessionStore && sessionKey) {
       const usage = runResult.meta.agentMeta?.usage;
-      const modelUsed =
-        runResult.meta.agentMeta?.model ?? agentCfg?.model ?? DEFAULT_MODEL;
+      const modelUsed = runResult.meta.agentMeta?.model ?? defaultModel;
       const contextTokensUsed =
         agentCfg?.contextTokens ??
         lookupContextTokens(modelUsed) ??

@@ -35,8 +35,7 @@ async function withTempHome<T>(fn: (home: string) => Promise<T>): Promise<T> {
 function makeCfg(home: string) {
   return {
     agent: {
-      provider: "anthropic",
-      model: "claude-opus-4-5",
+      model: "anthropic/claude-opus-4-5",
       workspace: join(home, "clawd"),
     },
     routing: {
@@ -99,6 +98,38 @@ describe("trigger handling", () => {
       const text = Array.isArray(res) ? res[0]?.text : res?.text;
       expect(text).toContain("Status");
       expect(runEmbeddedPiAgent).not.toHaveBeenCalled();
+    });
+  });
+
+  it("uses heartbeat model override for heartbeat runs", async () => {
+    await withTempHome(async (home) => {
+      vi.mocked(runEmbeddedPiAgent).mockResolvedValue({
+        payloads: [{ text: "ok" }],
+        meta: {
+          durationMs: 1,
+          agentMeta: { sessionId: "s", provider: "p", model: "m" },
+        },
+      });
+
+      const cfg = makeCfg(home);
+      cfg.agent = {
+        ...cfg.agent,
+        heartbeat: { model: "anthropic/claude-haiku-4-5-20251001" },
+      };
+
+      await getReplyFromConfig(
+        {
+          Body: "hello",
+          From: "+1002",
+          To: "+2000",
+        },
+        { isHeartbeat: true },
+        cfg,
+      );
+
+      const call = vi.mocked(runEmbeddedPiAgent).mock.calls[0]?.[0];
+      expect(call?.provider).toBe("anthropic");
+      expect(call?.model).toBe("claude-haiku-4-5-20251001");
     });
   });
 
@@ -168,8 +199,7 @@ describe("trigger handling", () => {
         {},
         {
           agent: {
-            provider: "anthropic",
-            model: "claude-opus-4-5",
+            model: "anthropic/claude-opus-4-5",
             workspace: join(home, "clawd"),
           },
           routing: {
@@ -210,8 +240,7 @@ describe("trigger handling", () => {
         {},
         {
           agent: {
-            provider: "anthropic",
-            model: "claude-opus-4-5",
+            model: "anthropic/claude-opus-4-5",
             workspace: join(home, "clawd"),
           },
           routing: {
@@ -250,8 +279,7 @@ describe("trigger handling", () => {
         {},
         {
           agent: {
-            provider: "anthropic",
-            model: "claude-opus-4-5",
+            model: "anthropic/claude-opus-4-5",
             workspace: join(home, "clawd"),
           },
           routing: {

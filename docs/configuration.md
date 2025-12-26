@@ -113,15 +113,14 @@ Controls inbound/outbound prefixes and timestamps.
 
 ### `agent`
 
-Controls the embedded agent runtime (provider/model/thinking/verbose/timeouts).
+Controls the embedded agent runtime (model/thinking/verbose/timeouts).
 `allowedModels` lets `/model` list/filter and enforce a per-session allowlist
 (omit to show the full catalog).
 
 ```json5
 {
   agent: {
-    provider: "anthropic",
-    model: "claude-opus-4-5",
+    model: "anthropic/claude-opus-4-5",
     allowedModels: [
       "anthropic/claude-opus-4-5",
       "anthropic/claude-sonnet-4-1"
@@ -130,7 +129,9 @@ Controls the embedded agent runtime (provider/model/thinking/verbose/timeouts).
     verboseDefault: "off",
     timeoutSeconds: 600,
     mediaMaxMb: 5,
-    heartbeatMinutes: 30,
+    heartbeat: {
+      every: "30m"
+    },
     maxConcurrent: 3,
     bash: {
       backgroundMs: 20000,
@@ -141,6 +142,15 @@ Controls the embedded agent runtime (provider/model/thinking/verbose/timeouts).
   }
 }
 ```
+
+`agent.model` should be set as `provider/model` (e.g. `anthropic/claude-opus-4-5`).
+If you omit the provider, CLAWDIS currently assumes `anthropic` as a temporary
+deprecation fallback.
+
+`agent.heartbeat` configures periodic heartbeat runs:
+- `every`: duration string (`ms`, `s`, `m`, `h`); default unit minutes. Omit or set
+  `0m` to disable.
+- `model`: optional override model for heartbeat runs (`provider/model`).
 
 `agent.bash` configures background bash defaults:
 - `backgroundMs`: time before auto-background (ms, default 20000)
@@ -163,11 +173,11 @@ When `models.providers` is present, Clawdis writes/merges a `models.json` into
 - default behavior: **merge** (keeps existing providers, overrides on name)
 - set `models.mode: "replace"` to overwrite the file contents
 
-Select the model via `agent.provider` + `agent.model`.
+Select the model via `agent.model` (provider/model).
 
 ```json5
 {
-  agent: { provider: "custom-proxy", model: "llama-3.1-8b" },
+  agent: { model: "custom-proxy/llama-3.1-8b" },
   models: {
     mode: "merge",
     providers: {

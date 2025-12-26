@@ -2,7 +2,12 @@ import fs from "node:fs";
 import os from "node:os";
 
 import { lookupContextTokens } from "../agents/context.js";
-import { DEFAULT_CONTEXT_TOKENS, DEFAULT_MODEL } from "../agents/defaults.js";
+import {
+  DEFAULT_CONTEXT_TOKENS,
+  DEFAULT_MODEL,
+  DEFAULT_PROVIDER,
+} from "../agents/defaults.js";
+import { resolveConfiguredModelRef } from "../agents/model-selection.js";
 import {
   derivePromptTokens,
   normalizeUsage,
@@ -129,7 +134,12 @@ const readUsageFromSessionLog = (
 export function buildStatusMessage(args: StatusArgs): string {
   const now = args.now ?? Date.now();
   const entry = args.sessionEntry;
-  let model = entry?.model ?? args.agent?.model ?? DEFAULT_MODEL;
+  const resolved = resolveConfiguredModelRef({
+    cfg: { agent: args.agent ?? {} },
+    defaultProvider: DEFAULT_PROVIDER,
+    defaultModel: DEFAULT_MODEL,
+  });
+  let model = entry?.model ?? resolved.model ?? DEFAULT_MODEL;
   let contextTokens =
     entry?.contextTokens ??
     args.agent?.contextTokens ??
@@ -192,11 +202,7 @@ export function buildStatusMessage(args: StatusArgs): string {
 
   const optionsLine = `Options: thinking=${thinkLevel} | verbose=${verboseLevel} (set with /think <level>, /verbose on|off, /model <id>)`;
 
-  const modelLabel = args.agent?.provider?.trim()
-    ? `${args.agent.provider}/${args.agent?.model ?? model}`
-    : model
-      ? model
-      : "unknown";
+  const modelLabel = model ? `${resolved.provider}/${model}` : "unknown";
 
   const agentLine = `Agent: embedded pi • ${modelLabel}`;
 
