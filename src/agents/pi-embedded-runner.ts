@@ -276,6 +276,8 @@ function resolveModel(
 async function getApiKeyForModel(model: Model<Api>): Promise<string> {
   ensureOAuthStorage();
   if (model.provider === "anthropic") {
+    const fallbackKey = getFallbackApiKey();
+    if (fallbackKey && shouldUseFallbackKey()) return fallbackKey;
     const oauthEnv = process.env.ANTHROPIC_OAUTH_TOKEN;
     if (oauthEnv?.trim()) return oauthEnv.trim();
   }
