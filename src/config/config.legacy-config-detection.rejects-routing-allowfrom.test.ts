@@ -6,14 +6,14 @@ describe("legacy config detection", () => {
     {
       name: "routing.allowFrom",
       input: { routing: { allowFrom: ["+15555550123"] } },
-      expectedPath: "",
-      expectedMessage: '"routing"',
+      expectedPath: "routing",
+      expectedMessage: "allowFrom",
     },
     {
       name: "routing.groupChat.requireMention",
       input: { routing: { groupChat: { requireMention: false } } },
-      expectedPath: "",
-      expectedMessage: '"routing"',
+      expectedPath: "routing",
+      expectedMessage: "groupChat",
     },
   ] as const)(
     "rejects legacy routing key: $name",

@@ -47,6 +47,7 @@ import { hasInboundMedia } from "./inbound-media.js";
 import { buildInboundMetaSystemPrompt, buildInboundUserContextPrefix } from "./inbound-meta.js";
 import type { createModelSelectionState } from "./model-selection.js";
 import { resolveOriginMessageProvider } from "./origin-routing.js";
+import { readPerGroupPromptOverlay } from "./per-group-prompt.js";
 import { buildReplyPromptBodies } from "./prompt-prelude.js";
 import { resolveActiveRunQueueAction } from "./queue-policy.js";
 import { resolveQueueSettings } from "./queue/settings-runtime.js";
@@ -293,11 +294,17 @@ export async function runPreparedReply(
     isNewSession ? sessionCtx : { ...sessionCtx, ThreadStarterBody: undefined },
     { includeFormattingHints: !useFastReplyRuntime },
   );
+  const perGroupPromptOverlay = await readPerGroupPromptOverlay({
+    cfg,
+    groupId: resolveGroupSessionKey(sessionCtx)?.id ?? undefined,
+    workspaceDir,
+  });
   const extraSystemPromptParts = [
     inboundMetaPrompt,
     groupChatContext,
     groupIntro,
     groupSystemPrompt,
+    perGroupPromptOverlay,
     buildExecOverridePromptHint({
       execOverrides,
       elevatedLevel: resolvedElevatedLevel,

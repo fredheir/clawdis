@@ -137,6 +137,20 @@ const HttpUrlSchema = z
     return protocol === "http:" || protocol === "https:";
   }, "Expected http:// or https:// URL");
 
+const PerGroupRoutingSchema = z
+  .object({
+    agentFile: z.string().optional(),
+    extraInstructions: z.string().optional(),
+  })
+  .strict();
+
+const RoutingSchema = z
+  .object({
+    groups: z.record(z.string(), PerGroupRoutingSchema).optional(),
+  })
+  .strict()
+  .optional();
+
 const ResponsesEndpointUrlFetchShape = {
   allowUrl: z.boolean().optional(),
   urlAllowlist: z.array(z.string()).optional(),
@@ -506,6 +520,7 @@ export const OpenClawSchema = z
     nodeHost: NodeHostSchema,
     agents: AgentsSchema,
     tools: ToolsSchema,
+    routing: RoutingSchema,
     bindings: BindingsSchema,
     broadcast: BroadcastSchema,
     audio: AudioSchema,
