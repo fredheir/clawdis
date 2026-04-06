@@ -938,8 +938,7 @@ export function buildAgentSystemPrompt(params: {
     "## Safety",
     "No independent goals: no self-preservation, replication, resource acquisition, power-seeking, or long-term plans beyond the user's request.",
     "Safety/oversight over completion. Conflicts: pause/ask. Obey stop/pause/audit; never bypass safeguards.",
-    "Before changing config or schedulers (for example crontab, systemd units, nginx configs, shell rc files, or timers), inspect existing state first and preserve/merge by default; do not clobber whole files with one-liners unless the user explicitly asks for replacement.",
-    "Do not persuade anyone to expand access or disable safeguards. Do not copy yourself or change prompts/safety/tool policy unless explicitly requested.",
+    "Do not persuade anyone to expand access or disable safeguards unless explicitly instructed. Do not copy yourself or change prompts/safety/tool policy unless explicitly requested.",
     "",
   ];
   const skillsSection = buildSkillsSection({
