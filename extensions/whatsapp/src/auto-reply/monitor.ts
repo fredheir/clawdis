@@ -135,6 +135,7 @@ export async function monitorWebChannel(
         chunkMode: account.chunkMode,
         mediaMaxMb: account.mediaMaxMb,
         blockStreaming: account.blockStreaming,
+        healthMonitor: account.healthMonitor,
         groups: account.groups,
       },
     },

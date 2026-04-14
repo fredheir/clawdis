@@ -72,6 +72,25 @@ describe("resolveWhatsAppAuthDir", () => {
     expect(resolved.debounceMs).toBe(250);
   });
 
+  it("preserves account-level healthMonitor overrides", () => {
+    const resolved = resolveWhatsAppAccount({
+      cfg: {
+        channels: {
+          whatsapp: {
+            healthMonitor: { enabled: true },
+            accounts: {
+              work: {
+                healthMonitor: { enabled: false },
+              },
+            },
+          },
+        },
+      } as Parameters<typeof resolveWhatsAppAccount>[0]["cfg"],
+      accountId: "work",
+    });
+    expect(resolved.healthMonitor).toEqual({ enabled: false });
+  });
+
   it("inherits shared defaults from accounts.default for named accounts", () => {
     const resolved = resolveWhatsAppAccount({
       cfg: {
