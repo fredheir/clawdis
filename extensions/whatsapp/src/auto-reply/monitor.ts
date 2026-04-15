@@ -181,6 +181,7 @@ export async function monitorWebChannel(
   };
   process.once("SIGINT", handleSigint);
 
+  const watchdogEnabled = account.healthMonitor?.enabled !== false;
   const messageTimeoutMs = tuning.messageTimeoutMs ?? 30 * 60 * 1000;
   const watchdogCheckMs = tuning.watchdogCheckMs ?? 60 * 1000;
   const controller = new WhatsAppConnectionController({
@@ -189,6 +190,7 @@ export async function monitorWebChannel(
     verbose,
     keepAlive,
     heartbeatSeconds,
+    watchdogEnabled,
     messageTimeoutMs,
     watchdogCheckMs,
     reconnectPolicy,

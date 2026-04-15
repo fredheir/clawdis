@@ -229,6 +229,7 @@ export class WhatsAppConnectionController {
   private readonly reconnectPolicy: ReconnectPolicy;
   private readonly heartbeatSeconds: number;
   private readonly keepAlive: boolean;
+  private readonly watchdogEnabled: boolean;
   private readonly messageTimeoutMs: number;
   private readonly watchdogCheckMs: number;
   private readonly verbose: boolean;
@@ -247,6 +248,7 @@ export class WhatsAppConnectionController {
     verbose: boolean;
     keepAlive: boolean;
     heartbeatSeconds: number;
+    watchdogEnabled?: boolean;
     messageTimeoutMs: number;
     watchdogCheckMs: number;
     reconnectPolicy: ReconnectPolicy;
@@ -259,6 +261,7 @@ export class WhatsAppConnectionController {
     this.verbose = params.verbose;
     this.keepAlive = params.keepAlive;
     this.heartbeatSeconds = params.heartbeatSeconds;
+    this.watchdogEnabled = params.watchdogEnabled ?? true;
     this.messageTimeoutMs = params.messageTimeoutMs;
     this.watchdogCheckMs = params.watchdogCheckMs;
     this.reconnectPolicy = params.reconnectPolicy;
@@ -559,6 +562,10 @@ export class WhatsAppConnectionController {
       }
       hooks.onHeartbeat?.(snapshot);
     }, this.heartbeatSeconds * 1000);
+
+    if (!this.watchdogEnabled) {
+      return;
+    }
 
     connection.watchdogTimer = setInterval(() => {
       const baselineAt = connection.lastInboundAt ?? connection.startedAt;

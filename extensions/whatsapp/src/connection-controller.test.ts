@@ -154,4 +154,50 @@ describe("WhatsAppConnectionController", () => {
       await liveController.shutdown();
     }
   });
+
+  it("disables the reconnect watchdog when explicitly turned off", async () => {
+    vi.useFakeTimers();
+    const watchdogListener = {
+      sendMessage: vi.fn(async () => ({ messageId: "msg" })),
+      sendPoll: vi.fn(async () => ({ messageId: "poll" })),
+      sendReaction: vi.fn(async () => {}),
+      sendComposingTo: vi.fn(async () => {}),
+      signalClose: vi.fn(),
+    };
+    const watchdogController = new WhatsAppConnectionController({
+      accountId: "work",
+      authDir: "/tmp/wa-auth",
+      verbose: false,
+      keepAlive: true,
+      heartbeatSeconds: 30,
+      watchdogEnabled: false,
+      messageTimeoutMs: 10,
+      watchdogCheckMs: 5,
+      reconnectPolicy: {
+        initialMs: 250,
+        maxMs: 1_000,
+        factor: 2,
+        jitter: 0,
+        maxAttempts: 5,
+      },
+    });
+
+    try {
+      createWaSocketMock.mockResolvedValueOnce({ ws: { close: vi.fn() } } as never);
+      waitForWaConnectionMock.mockResolvedValueOnce(undefined);
+
+      await watchdogController.openConnection({
+        connectionId: "watchdog-off",
+        createListener: async () => watchdogListener,
+        onWatchdogTimeout: vi.fn(),
+      });
+
+      await vi.advanceTimersByTimeAsync(100);
+      expect(watchdogListener.signalClose).not.toHaveBeenCalled();
+      expect(watchdogController.getActiveListener()).toBe(watchdogListener);
+    } finally {
+      vi.useRealTimers();
+      await watchdogController.shutdown();
+    }
+  });
 });
