@@ -20,6 +20,17 @@ export {
   handleCompactionStart,
 } from "./pi-embedded-subscribe.handlers.compaction.js";
 
+function isExpectedTerminationAssistantMessage(message: unknown): boolean {
+  const assistantMessage =
+    message && typeof message === "object"
+      ? (message as EmbeddedPiSubscribeContext["state"]["lastAssistant"])
+      : undefined;
+  if (!isAssistantMessage(assistantMessage) || assistantMessage.stopReason !== "error") {
+    return false;
+  }
+  return assistantMessage.errorMessage?.trim().toLowerCase() === "terminated";
+}
+
 export function handleAgentStart(ctx: EmbeddedPiSubscribeContext) {
   ctx.log.debug(`embedded run agent start: runId=${ctx.params.runId}`);
   emitAgentEvent({
@@ -38,7 +49,11 @@ export function handleAgentStart(ctx: EmbeddedPiSubscribeContext) {
 
 export function handleAgentEnd(ctx: EmbeddedPiSubscribeContext): void | Promise<void> {
   const lastAssistant = ctx.state.lastAssistant;
-  const isError = isAssistantMessage(lastAssistant) && lastAssistant.stopReason === "error";
+  const terminatedExpectedly = isExpectedTerminationAssistantMessage(lastAssistant);
+  const isError =
+    isAssistantMessage(lastAssistant) &&
+    lastAssistant.stopReason === "error" &&
+    !terminatedExpectedly;
   let lifecycleErrorText: string | undefined;
   const hasAssistantVisibleText =
     Array.isArray(ctx.state.assistantTexts) &&
@@ -53,7 +68,9 @@ export function handleAgentEnd(ctx: EmbeddedPiSubscribeContext): void | Promise<
     lastAssistant: isAssistantMessage(lastAssistant) ? lastAssistant : null,
   });
   const replayInvalid =
-    ctx.state.replayState.replayInvalid || incompleteTerminalAssistant ? true : undefined;
+    ctx.state.replayState.replayInvalid || incompleteTerminalAssistant || terminatedExpectedly
+      ? true
+      : undefined;
   const derivedWorkingTerminalState = isError
     ? "blocked"
     : replayInvalid && !hasAssistantVisibleText && !hadDeterministicSideEffect

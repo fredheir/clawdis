@@ -219,6 +219,39 @@ describe("handleAgentEnd", () => {
     expect(ctx.log.debug).toHaveBeenCalledWith("embedded run agent end: runId=run-1 isError=false");
   });
 
+  it("treats bare terminated assistant errors as interrupted ends instead of failures", async () => {
+    const onAgentEvent = vi.fn();
+    const ctx = createContext(
+      {
+        role: "assistant",
+        stopReason: "error",
+        provider: "openai-codex",
+        model: "gpt-5.4",
+        errorMessage: "terminated",
+        content: [{ type: "text", text: "" }],
+      },
+      { onAgentEvent },
+    );
+    ctx.state.livenessState = "working";
+    ctx.state.assistantTexts = [];
+    ctx.state.messagingToolSentTexts = [];
+    ctx.state.messagingToolSentMediaUrls = [];
+    ctx.state.successfulCronAdds = 0;
+
+    await handleAgentEnd(ctx);
+
+    expect(ctx.log.warn).not.toHaveBeenCalled();
+    expect(ctx.log.debug).toHaveBeenCalledWith("embedded run agent end: runId=run-1 isError=false");
+    expect(onAgentEvent).toHaveBeenCalledWith({
+      stream: "lifecycle",
+      data: {
+        phase: "end",
+        livenessState: "abandoned",
+        replayInvalid: true,
+      },
+    });
+  });
+
   it("surfaces replay-invalid paused lifecycle end state when present", async () => {
     const onAgentEvent = vi.fn();
     const ctx = createContext(undefined, { onAgentEvent });
