@@ -9,7 +9,7 @@ describe("gateway startup log", () => {
     vi.useRealTimers();
   });
 
-  it("warns when dangerous config flags are enabled", async () => {
+  it("logs an info note when dangerous config flags are enabled", async () => {
     const info = vi.fn();
     const warn = vi.fn();
 
@@ -28,11 +28,14 @@ describe("gateway startup log", () => {
       isNixMode: false,
     });
 
-    expect(warn.mock.calls).toEqual([
-      [
-        "security warning: dangerous config flags enabled: gateway.controlUi.dangerouslyDisableDeviceAuth=true. Run `openclaw security audit`.",
-      ],
-    ]);
+    expect(warn).not.toHaveBeenCalled();
+    expect(info).toHaveBeenCalledWith(
+      expect.stringContaining("flags marked dangerous by the security audit"),
+    );
+    expect(info).toHaveBeenCalledWith(
+      expect.stringContaining("gateway.controlUi.dangerouslyDisableDeviceAuth=true"),
+    );
+    expect(info).toHaveBeenCalledWith(expect.stringContaining("openclaw security audit"));
   });
 
   it("does not warn when dangerous config flags are disabled", async () => {

@@ -743,7 +743,7 @@ export async function startGatewaySidecars(params: {
   prewarmPrimaryModel?: typeof prewarmConfiguredPrimaryModel;
   onPluginServices?: (pluginServices: PluginServicesHandle | null) => void;
   shouldStartPluginServices?: () => boolean;
-  log: { warn: (msg: string) => void };
+  log: { info: (msg: string) => void; warn: (msg: string) => void };
   logHooks: {
     info: (msg: string) => void;
     warn: (msg: string) => void;
@@ -880,8 +880,8 @@ export async function startGatewaySidecars(params: {
         if (result.checked === 0) {
           return;
         }
-        params.log.warn(
-          `acp startup identity reconcile (renderer=${ACP_SESSION_IDENTITY_RENDERER_VERSION}): checked=${result.checked} resolved=${result.resolved} failed=${result.failed}`,
+        params.log.info(
+          `acp startup identity reconcile summary (renderer=${ACP_SESSION_IDENTITY_RENDERER_VERSION}): checked=${result.checked} resolved=${result.resolved} failed=${result.failed}`,
         );
       });
     })().catch((err: unknown) => {

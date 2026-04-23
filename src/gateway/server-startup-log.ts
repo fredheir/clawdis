@@ -70,10 +70,10 @@ export async function logGatewayStartup(params: {
       params.cfg,
     );
   if (enabledDangerousFlags.length > 0) {
-    const warning =
-      `security warning: dangerous config flags enabled: ${enabledDangerousFlags.join(", ")}. ` +
-      "Run `openclaw security audit`.";
-    params.log.warn(warning);
+    const note =
+      `startup security note: config enables flags marked dangerous by the security audit: ` +
+      `${enabledDangerousFlags.join(", ")}. Run \`openclaw security audit\` to review them.`;
+    params.log.info(note);
   }
 }
 
